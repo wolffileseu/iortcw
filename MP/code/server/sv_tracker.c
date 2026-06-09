@@ -312,3 +312,36 @@ static char *Tracker_getGUID(client_t *cl)
 
 	return "unknown";
 }
+
+
+/**
+ * @brief Inspect a game print line and forward obituary kills to the tracker.
+ *
+ * Called from the G_PRINT system call. The RtCW game module emits one line per
+ * kill via G_LogPrintf -> G_Printf:
+ *     "Kill: <killer> <victim> <mod>: <name> killed <name> by <MOD_x>\n"
+ * We parse only the three leading integers and forward:
+ *     kill <killer> <victim> <mod>
+ * Everything else is ignored. Cheap: a single prefix compare per print line.
+ *
+ * @param[in] text The string passed to G_PRINT (no leading timestamp)
+ */
+void Tracker_GamePrint(const char *text)
+{
+	int killer, victim, mod;
+
+	if (numTrackerAddrs == 0 || !text)
+	{
+		return;
+	}
+
+	if (Q_strncmp(text, "Kill: ", 6) != 0)
+	{
+		return;
+	}
+
+	if (sscanf(text + 6, "%i %i %i", &killer, &victim, &mod) == 3)
+	{
+		Tracker_Send("kill %i %i %i", killer, victim, mod);
+	}
+}

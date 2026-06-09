@@ -29,6 +29,7 @@ If you have questions concerning this license or the applicable additional terms
 // sv_game.c -- interface to the game dll
 
 #include "server.h"
+#include "sv_tracker.h"
 
 #include "../botlib/botlib.h"
 
@@ -311,6 +312,7 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 	switch ( args[0] ) {
 	case G_PRINT:
 		Com_Printf( "%s", (const char*)VMA(1) );
+		Tracker_GamePrint( (const char*)VMA(1) );  // Wolffiles tracker: obituary kills
 		return 0;
 	case G_ERROR:
 		Com_Error( ERR_DROP, "%s", (const char*)VMA(1) );

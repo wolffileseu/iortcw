@@ -43,5 +43,6 @@ void Tracker_MapEnd(void);
 
 void Tracker_Frame(int msec);
 void Tracker_catchBotConnect(int clientNum);
+void Tracker_GamePrint(const char *text);
 
 #endif // INCLUDE_TRACKER_H
