@@ -34,6 +34,7 @@ If you have questions concerning this license or the applicable additional terms
 */
 
 #include "server.h"
+#include "sv_tracker.h"
 
 /*
 ===============
@@ -742,6 +743,10 @@ void SV_SpawnServer( char *server, qboolean killBots ) {
 
 	Cvar_Set( "sv_serverRestarting", "0" );
 
+	// Wolffiles tracker
+	Tracker_ServerStart();
+	Tracker_Map( server );
+
 	Com_Printf( "-----------------------------------\n" );
 }
 
@@ -916,6 +921,9 @@ void SV_Init( void ) {
 
 	sv_banFile = Cvar_Get("sv_banFile", "serverbans.dat", CVAR_ARCHIVE);
 
+	// Wolffiles tracker
+	Tracker_Init();
+
 	sv_onlyVisibleClients = Cvar_Get( "sv_onlyVisibleClients", "0", 0 );       // DHM - Nerve
 
 	sv_forceNameUniq = Cvar_Get( "sv_forceNameUniq", "0", CVAR_ARCHIVE );
@@ -1037,6 +1045,9 @@ void SV_Shutdown( char *finalmsg ) {
 	}
 
 	Com_Printf( "----- Server Shutdown (%s) -----\n", finalmsg );
+
+	// Wolffiles tracker (send while NET sockets are still up)
+	Tracker_ServerStop();
 
 	NET_LeaveMulticast6();
 

@@ -28,6 +28,7 @@ If you have questions concerning this license or the applicable additional terms
 
 
 #include "server.h"
+#include "sv_tracker.h"
 
 #ifdef USE_VOIP
 cvar_t *sv_voip;
@@ -1211,6 +1212,9 @@ void SV_Frame( int msec ) {
 	}
 
 	sv.timeResidual += msec;
+
+	// Wolffiles tracker
+	Tracker_Frame( msec );
 
 	if (!com_dedicated->integer) SV_BotFrame (sv.time + sv.timeResidual);
 

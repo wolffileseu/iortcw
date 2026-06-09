@@ -28,6 +28,7 @@ If you have questions concerning this license or the applicable additional terms
 
 
 #include "server.h"
+#include "sv_tracker.h"
 
 /*
 ===============================================================================
@@ -475,6 +476,9 @@ static void SV_MapRestart_f( void ) {
 	svs.time += 100;
 
 	Cvar_Set( "sv_serverRestarting", "0" );
+
+	// Wolffiles tracker
+	Tracker_MapRestart();
 }
 
 /*

@@ -1,0 +1,64 @@
+name: Build MP
+
+# Builds the RTCW-MP tree (the part the sv_tracker work touches).
+# - linux-dedicated: server only, no SDL needed -> fast, guaranteed green
+#   check that the tracker code compiles.
+# - linux-full: client + server + game libs/qvm (needs libsdl2-dev).
+# - windows-cross: MinGW cross-compile for Windows x86_64.
+# Artifacts (the built binaries) are uploaded on every run.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux-dedicated:
+    name: Linux dedicated (server only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build iowolfded (no SDL required)
+        run: make -C MP BUILD_CLIENT=0 -j"$(nproc)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iowolfded-linux-x86_64
+          path: MP/build/release-linux-x86_64/iowolfded.x86_64
+          if-no-files-found: error
+
+  linux-full:
+    name: Linux full (client + server)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev
+      - name: Build client + server + game
+        run: make -C MP -j"$(nproc)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iortcw-mp-linux-x86_64
+          path: |
+            MP/build/release-linux-x86_64/iowolfmp.x86_64
+            MP/build/release-linux-x86_64/iowolfded.x86_64
+          if-no-files-found: warn
+
+  windows-cross:
+    name: Windows cross (MinGW x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MinGW toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64 g++-mingw-w64
+      - name: Cross-compile for Windows
+        run: make -C MP PLATFORM=mingw32 ARCH=x86_64 -j"$(nproc)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iortcw-mp-windows-x86_64
+          path: MP/build/release-mingw32-x86_64/*.exe
+          if-no-files-found: warn

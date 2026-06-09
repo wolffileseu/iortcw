@@ -29,6 +29,7 @@ If you have questions concerning this license or the applicable additional terms
 // sv_bot.c
 
 #include "server.h"
+#include "sv_tracker.h"
 #include "../botlib/botlib.h"
 #include "../botlib/botai.h"
 
@@ -78,6 +79,9 @@ int SV_BotAllocateClient( void ) {
 	cl->lastPacketTime = svs.time;
 	cl->netchan.remoteAddress.type = NA_BOT;
 	cl->rate = 16384;
+
+	// Wolffiles tracker
+	Tracker_catchBotConnect( i );
 
 	return i;
 }

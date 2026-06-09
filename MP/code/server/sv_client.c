@@ -29,6 +29,7 @@ If you have questions concerning this license or the applicable additional terms
 // sv_client.c -- server code for dealing with clients
 
 #include "server.h"
+#include "sv_tracker.h"
 
 static void SV_CloseDownload( client_t *cl );
 
@@ -612,6 +613,9 @@ gotnewcl:
 	// gamestate message was not just sent, forcing a retransmit
 	newcl->gamestateMessageNum = -1;
 
+	// Wolffiles tracker
+	Tracker_ClientConnect( newcl );
+
 	// if this was the first client on the server, or the last client
 	// the server can hold, send a heartbeat to the master.
 	count = 0;
@@ -691,6 +695,9 @@ void SV_DropClient( client_t *drop, const char *reason ) {
 
 	// call the prog function for removing a client
 	// this will remove the body, among other things
+	// Wolffiles tracker
+	Tracker_ClientDisconnect( drop );
+
 	VM_Call( gvm, GAME_CLIENT_DISCONNECT, drop - svs.clients );
 
 	// add the disconnect command
@@ -1599,6 +1606,8 @@ static void SV_UpdateUserinfo_f( client_t *cl ) {
 
 	// call prog code to allow overrides
 	VM_Call( gvm, GAME_CLIENT_USERINFO_CHANGED, cl - svs.clients );
+	// Wolffiles tracker
+	Tracker_ClientName( cl );
 }
 
 #ifdef USE_VOIP
