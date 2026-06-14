@@ -335,6 +335,22 @@ void Tracker_GamePrint(const char *text)
 		return;
 	}
 
+	// Weapon stats line from the game (ET ws format, already includes the
+	// clientinfo suffix). Forward verbatim, minus trailing newline.
+	if (Q_strncmp(text, "ws ", 3) == 0)
+	{
+		char wsbuf[1024];
+		int  len;
+		Q_strncpyz(wsbuf, text, sizeof(wsbuf));
+		len = (int)strlen(wsbuf);
+		while (len > 0 && (wsbuf[len - 1] == '\n' || wsbuf[len - 1] == '\r'))
+		{
+			wsbuf[--len] = '\0';
+		}
+		Tracker_Send("%s", wsbuf);
+		return;
+	}
+
 	if (Q_strncmp(text, "Kill: ", 6) != 0)
 	{
 		return;
