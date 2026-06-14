@@ -1795,16 +1795,13 @@ BeginIntermission
 ==================
 */
 void BeginIntermission( void ) {
-	// Wolffiles tracker: emit end-of-map weapon stats before intermission
-	G_WriteWeaponStats();
-
 	int i;
 	gentity_t   *client;
-
 	if ( level.intermissiontime ) {
 		return;     // already active
 	}
-
+	// Wolffiles tracker: emit end-of-map weapon stats before intermission
+	G_WriteWeaponStats();
 	// if in tournement mode, change the wins / losses
 	if ( g_gametype.integer == GT_TOURNAMENT ) {
 		AdjustTournamentScores();
