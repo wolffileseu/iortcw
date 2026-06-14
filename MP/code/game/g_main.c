@@ -2638,6 +2638,7 @@ void G_RunFrame( int levelTime ) {
 	int i;
 	gentity_t   *ent;
 	int worldspawnflags, gt;
+	static int ws_nextDump = 0;   // Wolffiles tracker: periodic ws emit timer
 
 	// if we are waiting for the level to restart, do nothing
 	if ( level.restarted ) {
@@ -2649,6 +2650,13 @@ void G_RunFrame( int levelTime ) {
 	level.framenum++;
 	level.previousTime = level.time;
 	level.time = levelTime;
+
+	// Wolffiles tracker: emit weapon stats every 30s (RtCW rarely reaches
+	// intermission, so we can't rely on BeginIntermission alone).
+	if ( g_gametype.integer != GT_SINGLE_PLAYER && level.time >= ws_nextDump ) {
+		G_WriteWeaponStats();
+		ws_nextDump = level.time + 30000;
+	}
 
 	// check if current gametype is supported
 	worldspawnflags = g_entities[ENTITYNUM_WORLD].spawnflags;
