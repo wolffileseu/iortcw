@@ -2313,14 +2313,6 @@ void FireWeapon( gentity_t *ent ) {
 		s_quadFactor = 1;
 	}
 
-	// Wolffiles tracker: count a shot (multiplayer, real clients only)
-	if ( g_gametype.integer != GT_SINGLE_PLAYER && ent->client && !ent->aiCharacter ) {
-		int ws_w = ent->s.weapon;
-		if ( ws_w > 0 && ws_w < WS_MAX_WEAPONS ) {
-			ent->client->sess.ws_atts[ws_w]++;
-		}
-	}
-
 	// Ridah, need to call this for AI prediction also
 	CalcMuzzlePoints( ent, ent->s.weapon );
 

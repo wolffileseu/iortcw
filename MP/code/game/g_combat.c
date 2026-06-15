@@ -271,151 +271,6 @@ player_die
 */
 void limbo( gentity_t *ent, qboolean makeCorpse ); // JPW NERVE
 
-/*
-==================
-WS_ModToWeapon
-Wolffiles tracker: map a means-of-death to a WP_* weapon index for
-per-weapon kill/death accounting. Returns WP_NONE for world/suicide/env.
-==================
-*/
-int WS_ModToWeapon( int mod ) {
-	switch ( mod ) {
-		case MOD_KNIFE:            return WP_KNIFE;
-		case MOD_KNIFE2:           return WP_KNIFE2;
-		case MOD_LUGER:            return WP_LUGER;
-		case MOD_COLT:             return WP_COLT;
-		case MOD_MP40:             return WP_MP40;
-		case MOD_THOMPSON:         return WP_THOMPSON;
-		case MOD_STEN:             return WP_STEN;
-		case MOD_MAUSER:           return WP_MAUSER;
-		case MOD_SNIPERRIFLE:      return WP_MAUSER;
-		case MOD_GARAND:           return WP_GARAND;
-		case MOD_SNOOPERSCOPE:     return WP_GARAND;
-		case MOD_FG42:             return WP_FG42;
-		case MOD_FG42SCOPE:        return WP_FG42SCOPE;
-		case MOD_PANZERFAUST:      return WP_PANZERFAUST;
-		case MOD_FLAMETHROWER:     return WP_FLAMETHROWER;
-		case MOD_GRENADE_PINEAPPLE: return WP_GRENADE_PINEAPPLE;
-		case MOD_GRENADE_LAUNCHER:  return WP_GRENADE_LAUNCHER;
-		case MOD_DYNAMITE:         return WP_DYNAMITE;
-		case MOD_VENOM:            return WP_VENOM;
-		default:                   return WP_NONE;
-	}
-}
-
-/*
-==================
-G_WriteWeaponStats  (Wolffiles tracker)
-
-Emit one ET-format 'ws' line per active client via G_Printf. The engine's
-G_PRINT hook (Tracker_GamePrint) forwards these to the wolffiles tracker,
-where the existing WeaponStatsParser/WeaponStatsHandler consume them exactly
-as ET Legacy ws packets.
-
-ET weapon-bit order (extWeaponStats_e) -> RtCW WP_* index.
-Bits we don't have a clean RtCW weapon for are left as 0 in the table and
-simply never contribute.
-==================
-*/
-static const int ws_etbit_to_wp[] = {
-	WP_KNIFE,            /* 0  Knife        */
-	WP_KNIFE2,           /* 1  K-Bar (allied knife) */
-	WP_LUGER,            /* 2  Luger        */
-	WP_COLT,             /* 3  Colt         */
-	WP_MP40,             /* 4  MP40         */
-	WP_THOMPSON,         /* 5  Thompson     */
-	WP_STEN,             /* 6  Sten         */
-	WP_FG42,             /* 7  FG42         */
-	WP_PANZERFAUST,      /* 8  Panzerfaust  */
-	WP_NONE,             /* 9  Bazooka (n/a)*/
-	WP_FLAMETHROWER,     /* 10 Flamethrower */
-	WP_GRENADE_PINEAPPLE,/* 11 Grenade      */
-	WP_NONE,             /* 12 Mortar allied (n/a) */
-	WP_NONE,             /* 13 Mortar axis (n/a)   */
-	WP_DYNAMITE,         /* 14 Dynamite     */
-	WP_NONE,             /* 15 Airstrike (no weapon idx) */
-	WP_NONE,             /* 16 Artillery (no weapon idx) */
-	WP_NONE,             /* 17 Satchel (n/a)*/
-	WP_GRENADE_LAUNCHER, /* 18 Rifle Grenade*/
-	WP_NONE,             /* 19 Landmine (n/a)*/
-	WP_VENOM,            /* 20 MG42 -> Venom*/
-	WP_NONE,             /* 21 Browning (n/a)*/
-	WP_NONE,             /* 22 Carbine (n/a)*/
-	WP_MAUSER,           /* 23 Kar98 -> Mauser */
-	WP_GARAND,           /* 24 Garand       */
-	WP_NONE,             /* 25 K43 (n/a)    */
-	WP_NONE,             /* 26 MP34 (n/a)   */
-	WP_NONE,             /* 27 Syringe (n/a)*/
-};
-#define WS_ET_BITS ( (int)ARRAY_LEN( ws_etbit_to_wp ) )
-
-void G_WriteWeaponStats( void ) {
-	int        i, bit, wp;
-	gclient_t  *cl;
-	char       line[1024];
-	char       block[256];
-	int        mask;
-	int        ping, score, pclass;
-
-	if ( g_gametype.integer == GT_SINGLE_PLAYER ) {
-		return;
-	}
-
-	for ( i = 0; i < level.maxclients; i++ ) {
-		cl = &level.clients[i];
-
-		if ( cl->pers.connected != CON_CONNECTED ) {
-			continue;
-		}
-		if ( cl->sess.sessionTeam != TEAM_RED && cl->sess.sessionTeam != TEAM_BLUE ) {
-			continue; /* skip spectators */
-		}
-
-		/* build weapon_mask + per-weapon blocks in ET-bit order */
-		mask = 0;
-		block[0] = '\0';
-		{
-			char tmp[64];
-			for ( bit = 0; bit < WS_ET_BITS; bit++ ) {
-				wp = ws_etbit_to_wp[bit];
-				if ( wp <= 0 || wp >= WS_MAX_WEAPONS ) {
-					continue;
-				}
-				if ( cl->sess.ws_hits[wp] == 0 && cl->sess.ws_atts[wp] == 0 &&
-					 cl->sess.ws_kills[wp] == 0 && cl->sess.ws_deaths[wp] == 0 ) {
-					continue;
-				}
-				mask |= ( 1 << bit );
-				Com_sprintf( tmp, sizeof( tmp ), " %i %i %i %i %i",
-					cl->sess.ws_hits[wp], cl->sess.ws_atts[wp],
-					cl->sess.ws_kills[wp], cl->sess.ws_deaths[wp],
-					cl->sess.ws_headshots[wp] );
-				Q_strcat( block, sizeof( block ), tmp );
-			}
-		}
-
-		ping   = cl->ps.ping < 999 ? cl->ps.ping : 999;
-		score  = cl->ps.persistant[PERS_SCORE];
-		pclass = cl->sess.playerType;
-
-		/* ws <slot> <rounds> <mask>[blocks] <given> <recv> 0 0 0 0 0 0 0 \ping\score\P\class\name */
-		Com_sprintf( line, sizeof( line ),
-			"ws %i %i %i%s %i %i 0 0 0 0 0 0 0 \\%i\\%i\\0\\%i\\%s\n",
-			i,                                  /* slot   */
-			1,                                  /* rounds */
-			mask,
-			block,
-			cl->sess.ws_dmg_given,
-			cl->sess.ws_dmg_received,
-			ping,
-			score,
-			pclass,
-			cl->pers.netname );
-
-		G_Printf( "%s", line );
-	}
-}
-
 void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath ) {
 	gentity_t   *ent;
 	// TTimo might be used uninitialized
@@ -477,24 +332,6 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 	self->enemy = attacker;
 
 	self->client->ps.persistant[PERS_KILLED]++;
-
-	// Wolffiles tracker: kill / death / headshot accounting (MP only)
-	if ( g_gametype.integer != GT_SINGLE_PLAYER ) {
-		int ws_w = WS_ModToWeapon( meansOfDeath );
-		qboolean ws_hs = ( self->client->ps.eFlags & EF_HEADSHOT ) ? qtrue : qfalse;
-		if ( ws_w > 0 && ws_w < WS_MAX_WEAPONS ) {
-			// credit the killer (real client, not self, not same team)
-			if ( attacker && attacker->client && attacker != self
-				 && !OnSameTeam( self, attacker ) ) {
-				attacker->client->sess.ws_kills[ws_w]++;
-				if ( ws_hs ) {
-					attacker->client->sess.ws_headshots[ws_w]++;
-				}
-			}
-			// the victim takes a death for that weapon
-			self->client->sess.ws_deaths[ws_w]++;
-		}
-	}
 
 // JPW NERVE -- if player is holding ticking grenade, drop it
 	if ( g_gametype.integer != GT_SINGLE_PLAYER ) {
@@ -1222,17 +1059,6 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		} else {
 			attacker->client->ps.persistant[PERS_HITS] += damage;
 		}
-	}
-
-	// Wolffiles tracker: weapon hit + damage accounting (MP, enemies only)
-	if ( g_gametype.integer != GT_SINGLE_PLAYER && attacker->client && client
-		 && targ != attacker && targ->health > 0 && !OnSameTeam( targ, attacker ) ) {
-		int ws_w = attacker->s.weapon;
-		if ( ws_w > 0 && ws_w < WS_MAX_WEAPONS ) {
-			attacker->client->sess.ws_hits[ws_w]++;
-		}
-		attacker->client->sess.ws_dmg_given += damage;
-		targ->client->sess.ws_dmg_received += damage;
 	}
 
 	if ( damage < 1 ) {

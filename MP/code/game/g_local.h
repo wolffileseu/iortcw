@@ -463,16 +463,6 @@ typedef struct {
 	int latchPlayerWeapon;          // DHM - Nerve :: for GT_WOLF not archived
 	int latchPlayerItem;            // DHM - Nerve :: for GT_WOLF not archived
 	int latchPlayerSkin;            // DHM - Nerve :: for GT_WOLF not archived
-	// Wolffiles tracker: per-weapon match stats (sess survives respawn/restart)
-	// indexed by internal WS_* weapon index; mapped to ET weapon bits on send
-#define WS_MAX_WEAPONS 64
-	int ws_hits[WS_MAX_WEAPONS];
-	int ws_atts[WS_MAX_WEAPONS];
-	int ws_kills[WS_MAX_WEAPONS];
-	int ws_deaths[WS_MAX_WEAPONS];
-	int ws_headshots[WS_MAX_WEAPONS];
-	int ws_dmg_given;
-	int ws_dmg_received;
 } clientSession_t;
 
 //
@@ -868,7 +858,6 @@ void G_ProcessTagConnect( gentity_t *ent );
 //
 qboolean CanDamage( gentity_t *targ, vec3_t origin );
 void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod );
-void G_WriteWeaponStats( void );
 qboolean G_RadiusDamage( vec3_t origin, gentity_t *attacker, float damage, float radius, gentity_t *ignore, int mod );
 void body_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath );
 void TossClientItems( gentity_t *self );

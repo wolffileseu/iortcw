@@ -257,6 +257,42 @@ void Tracker_MapEnd(void)
 }
 
 /**
+ * @brief Emit mod-independent Score/Ping/Team for every active client.
+ *
+ * Reads id-standard fields (PERS_SCORE/PERS_TEAM via SV_GameClientNum,
+ * cl->ping) which EVERY RtCW qagame fills, so this works regardless of
+ * which mod is loaded. Reuses the existing ws wire format with mask=0
+ * (no weapon data) so the tracker parser needs no change.
+ *
+ *   ws <slot> 1 0 \<ping>\<score>\<team>\0\<name>
+ */
+void Tracker_WriteScores(void)
+{
+	int            i;
+	client_t      *cl;
+	playerState_t *ps;
+	int            ping;
+	int            score;
+	int            team;
+
+	for (i = 0, cl = svs.clients; i < sv_maxclients->integer; i++, cl++)
+	{
+		if (cl->state != CS_ACTIVE)
+		{
+			continue;
+		}
+		ps    = SV_GameClientNum(i);
+		score = ps->persistant[PERS_SCORE];
+		team  = ps->persistant[PERS_TEAM];
+		ping  = cl->ping < 9999 ? cl->ping : 9999;
+
+		// mask=0 => no weapon blocks; clientinfo carries ping/score/team/name
+		Tracker_Send("ws %i 1 0 \\%i\\%i\\%i\\0\\%s",
+		             i, ping, score, team, cl->name);
+	}
+}
+
+/**
  * @brief Per-frame tick: hot-reload, deferred bot-connect, heartbeat
  * @param[in] msec Unused (kept for call-site symmetry)
  */
@@ -283,6 +319,7 @@ void Tracker_Frame(int msec)
 	}
 
 	Tracker_Send("p"); // heartbeat: signal the tracker the server is alive
+	Tracker_WriteScores(); // mod-independent score/ping/team for all clients
 
 	t = time(0);
 }
