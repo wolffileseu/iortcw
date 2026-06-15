@@ -1,0 +1,135 @@
+name: Release
+
+# Builds release archives and publishes a GitHub Release when a version tag
+# is pushed (e.g. `git tag v1.51d-tracker && git push wolffiles v1.51d-tracker`).
+#
+# Produces, per platform, a zip laid out like the official iortcw releases:
+#   iowolfded(.exe)  iowolfmp(.exe)  main/qagame.*  main/cgame.*  main/ui.*
+#
+# This fork's headline change: engine-side, MOD-INDEPENDENT tracker reporting
+# (score/ping/team for ANY RtCW qagame) plus obituary kill forwarding.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:        # allow manual runs from the Actions tab (no release)
+
+permissions:
+  contents: write           # required for softprops/action-gh-release
+
+jobs:
+  # ---------------------------------------------------------------- Linux x86_64
+  linux:
+    name: Linux x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev
+
+      - name: Build (client + server + game)
+        run: make -C MP -j"$(nproc)"
+
+      - name: Stage release files
+        run: |
+          B=MP/build/release-linux-x86_64
+          OUT=stage/iortcw-tracker-linux-x86_64
+          mkdir -p "$OUT/main"
+          cp "$B/iowolfded.x86_64"            "$OUT/"            || true
+          cp "$B/iowolfmp.x86_64"             "$OUT/"            || true
+          cp "$B/main/qagame.mp.x86_64.so"    "$OUT/main/"       || true
+          cp "$B/main/cgame.mp.x86_64.so"     "$OUT/main/"       || true
+          cp "$B/main/ui.mp.x86_64.so"        "$OUT/main/"       || true
+          cp "$B/main/vm/qagame.mp.qvm"       "$OUT/main/"       || true
+          ls -laR "$OUT"
+
+      - name: Zip
+        run: |
+          cd stage
+          zip -r ../iortcw-tracker-linux-x86_64.zip iortcw-tracker-linux-x86_64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iortcw-tracker-linux-x86_64
+          path: iortcw-tracker-linux-x86_64.zip
+          if-no-files-found: error
+
+  # ------------------------------------------------------------- Windows x86_64
+  windows:
+    name: Windows x86_64 (MinGW cross)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MinGW toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64 g++-mingw-w64 zip
+
+      - name: Cross-compile for Windows
+        run: make -C MP PLATFORM=mingw32 ARCH=x86_64 -j"$(nproc)"
+
+      - name: Stage release files
+        run: |
+          B=MP/build/release-mingw32-x86_64
+          OUT=stage/iortcw-tracker-win-x86_64
+          mkdir -p "$OUT/main"
+          # binaries (exact names vary; copy whatever .exe + .dll the build made)
+          cp "$B"/*.exe                       "$OUT/"            || true
+          cp "$B"/main/*.dll                  "$OUT/main/"       || true
+          cp "$B"/main/vm/*.qvm               "$OUT/main/"       || true
+          ls -laR "$OUT"
+
+      - name: Zip
+        run: |
+          cd stage
+          zip -r ../iortcw-tracker-win-x86_64.zip iortcw-tracker-win-x86_64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iortcw-tracker-win-x86_64
+          path: iortcw-tracker-win-x86_64.zip
+          if-no-files-found: error
+
+  # ------------------------------------------------------------------- Release
+  release:
+    name: Publish GitHub Release
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Show what we got
+        run: find dist -type f
+
+      - name: Create / update release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/*.zip
+          generate_release_notes: true
+          body: |
+            ## iortcw (Wolffiles tracker fork)
+
+            Engine-side, **mod-independent** server tracking for Return to
+            Castle Wolfenstein multiplayer. Works with any qagame (Omnibot,
+            RTCWPro, stock) — no mod changes required.
+
+            **What the engine reports to `sv_tracker` (UDP):**
+            - server / map / round lifecycle and player connect/disconnect
+            - obituary kills (`Kill: <killer> <victim> <mod>`)
+            - per-player **score / ping / team**, read from the shared id
+              playerState (`PERS_SCORE` / `PERS_TEAM`) every frame tick
+
+            Set on your server:
+            ```
+            +set sv_tracker <host>:<port>
+            ```
+
+            Binaries built from tag `${{ github.ref_name }}`.
